@@ -1,11 +1,11 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-</head>
-<body>
+<!-- 상속 받아올거야 -->
+{% extends 'blog/base.html' %}
+
+{% load static %}
+
+{% block page_area %}
+
+
     <!-- blog/post_list.html이야<br> -->
     <!-- url에는 잘 넣어줬니?
     <ul>
@@ -40,5 +40,5 @@
  
 {% endfor %}
     </ul>
-</body>
-</html>
+
+{% endblock %}
