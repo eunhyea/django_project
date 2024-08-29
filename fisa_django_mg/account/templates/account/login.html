@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <div align = center>
+        <br><br>
+    <h1>Login</h1>
+    <br><br>
+    <form method="POST">
+        {% csrf_token %} {# 꼭 form 안에 들어있어야 합니다. #}
+        {{ form }}
+        <br><br>
+        <input type="submit" value="로그인">
+    </form>
+    </div>
+</body>
+</html>

@@ -27,7 +27,11 @@ from django.conf.urls.static import static
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("blog/", include('blog.urls')), # localhost:8000/blog/실제 blog/urls.py에 적힌 주소로 참고함 
+    # path("account/", include('account.urls')), 아래랑 겹침
+    path('accounts/', include('allauth.urls')),
+    path('', include('blog.urls'))
 ]
+
 
 # static으로 관리할거야, setting에서 media_url을 달고 오는 애들을
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
