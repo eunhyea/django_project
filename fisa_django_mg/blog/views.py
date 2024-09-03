@@ -1,9 +1,13 @@
+from typing import Any
+from django.db.models.query import QuerySet, Q
 from django.forms.models import BaseModelForm
 from django.http import HttpResponse
+from django.http.request import HttpRequest as HttpRequest
 from django.shortcuts import render, redirect
 from .models import Post, Tag, Comment
-from django.views.generic import ListView, DetailView, CreateView
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.utils.text import slugify
+from .forms import CommentForm
 
 # 회원탈퇴
 from django.views.decorators.http import require_POST # POST 방식으로만 접근해야하는 함수 앞에 적어줌
@@ -13,6 +17,9 @@ from django.contrib.auth import authenticate, login # authenticate : 인가, log
 from django.core.exceptions import PermissionDenied  #인가 - 권한이 없으면 예외...
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages  # 예외나 상황에 대한 메시지 처리 
+
+# 글수정/삭제
+# from myapp.models import Author
 
 # Mixin이라는 부가 기능들을 확인하기 위해 다중상속으로 주 기능을 확장하는 별도의 클래스
 # 주기능을 가진 클래스보다 앞에 작성해줍니다. 
@@ -54,12 +61,82 @@ class PostCreate(LoginRequiredMixin, CreateView):
                 return redirect('/blog/')
 
 
+class PostUpdate(LoginRequiredMixin, UpdateView):
+    model = Post
+    fields = ['title', 'content', 'head_image', 'file_upload']
+    
+    # 로그인한 상태에서 작성자(request.user) 가 object.author(Post.objects.get(pk=pk))과 일치하는지 확인 필요
+    def dispatch(self, request, *args, **kwargs): # 방문자가 GET으로 요청했는데 POST로 요청했는지 확인하는 기능
+        if request.user.is_authenticated and request.user == self.get_object().author:
+            return super(PostUpdate, self).dispatch(request, *args, **kwargs)
+        else:
+            raise PermissionDenied # 권한 없는 사람이 글 수정하려 하면 403
+    
+    # 이미 있는 글을 불러와서 원본에서 수정한 내용을 변경
+    # author 필드는 당연히 이전에 글을 생성한 작성자로 채워져있고, 
+    # LoginRequiredMixin으로 로그인한 유저 확인하므로 form_valid는 오버라이딩하지 않음
+    # 태그에 여러개 보내면 겹치지 않는 것만 새로 성성하는 기능은 필요하므로 get_context_data를 오버라이딩
+    def get_context_data(self, **kwargs):
+        context = super(PostUpdate, self).get_context_data()
+        if self.object.tag.exists():
+            tags_str_list = list()
+            for t in self.object.tag.all():
+                tags_str_list.append(t.tag_name)
+            context['tags_str_default'] = '; '.join(tags_str_list)
+
+        return context
+
+    # 포스트에 태그를 추가하려면 이미 데이터베이스에 저장된 pk를 부여받아서 수정해야 함, 
+    # 그래서 form_valid()를 통해 결과를 response 변수에 임시 담아두고
+    # 서로 저장된 포스트를 self.object로 저장함.
+    def form_valid(self, form):
+        response = super(PostUpdate, self).form_valid(form)
+        self.object.tag.clear()
+
+        tags_str = self.request.POST.get('tags_str')
+        if tags_str:
+            tags_str = tags_str.strip()
+            tags_str = tags_str.replace(',', ';')
+            tags_list = tags_str.split(';')
+
+            for t in tags_list:
+                t = t.strip()
+                tag, is_tag_created = Tag.objects.get_or_create(tag_name=t)
+                if is_tag_created:
+                    tag.slug = slugify(t, allow_unicode=True)
+                    tag.save()
+                self.object.tag.add(tag)
+
+        return response
+        
+class PostDelete(LoginRequiredMixin, DeleteView):
+    model = Post 
+    success_url = '/blog/'
+
+    def delete(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if self.object.author == request.user:
+            success_url = self.get_success_url()
+            self.object.delete()
+            return redirect(success_url)
+        else:
+            raise PermissionDenied
+
+
 class PostList(ListView):   # post_list.html, post-list
     model = Post 
     # template_name = 'blog/index.html' 
     ordering = '-pk' 
     context_object_name = 'post_list'
 
+class PostSearch(PostList):
+    paginate_by=5
+    def get_queryset(self):
+        q = self.kwargs['q'] # 검색어가 q라는 변수에 저장됨
+        # Q로 전문검색으로 만들기, 단순히 제목만 검색은 filter(title__contains)
+        post_list = Post.objects.filter(Q(title__contains=q) | Q(content__contains=q) | Q(tag__tag_name__contains=q)).select_related('author') 
+        return post_list
+    
 # Create your views here.
 def index(request): # 함수를 만들고, 그 함수를 도메인 주소 뒤에 달아서 호출하는 구조
     posts = Post.objects.all()
@@ -82,6 +159,7 @@ class PostDetail(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["now"] = '임의로 작성한 새로운 변수'
+        context["comment_form"] = CommentForm
         print(context["now"] )
         return context
     
@@ -96,3 +174,71 @@ def user_delete(request):
         auth_logout(request) #세션 지우기
         # 원래 페이지로 로그인 안된 상태로 원상복귀
         return redirect('blog_app:about_me')
+
+# 같은 tag(slug)를 가진 글끼리 출력하기
+# path('tag/<str:slug>' , views.tag_posts, name='tag') 에서 이어짐
+# url로 전달받은 slug를 아규먼트로 사용하게 됨
+def tag_post(request, slug):
+    # tag가 없는 경우 : 
+    if slug == "no-tag":
+        posts = Post.objects.filter(tag=None)
+    # tag가 있는 경우
+    else:
+        # slug파라미터가 일치하는 값들을 가져옴
+        # tag를 포함한 object를 추려냄
+        tag = Tag.objects.get(slug=slug)
+        # object를 post로 넘겨줘서 사용
+        # posts = Post.objects.filter(tag=tag)
+        # .select_related : 쿼리 최적화, foreignkey나 일대일관계로 연결된 테이블의 데이터를 미리 가져오는 메서드, 
+        # 데이터를 한 번에 저장해놓고 필요할 때 가져다 씀
+        posts = Post.objects.filter(tag=tag).select_related('author') 
+    return render(request, 'blog/post_list.html', {'post_list':posts})  # 템플릿 재사용
+
+
+ # 댓글 작성 - 글의 번호 blog/30/
+def create_comment(request, pk):
+    # GET / POST 서로 다른 결과 return 
+    # 로그인 상태 확인 
+    if request.user.is_authenticated:
+        post = Post.objects.get(pk=pk)
+
+        # POST 리턴 -> Comment 테이블에 값 업데이트
+        if request.method == 'POST':
+            comment_form = CommentForm(request.POST) # 작성한 content 
+            if comment_form.is_valid():
+                comment = comment_form.save(commit=False) # 객체는 만들었으나 아직 DB에 반영하지 않은 상태
+                comment.post = post # 임시 저장상태로 field로 입력받지 않은 값들을 추가
+                comment.author = request.user  # 임시 저장상태로 field로 입력받지 않은 값들을 추가
+                comment.save()
+                return redirect(comment.get_absolute_url())
+        else:
+            return redirect(post.get_absolute_url())
+    else:
+        raise PermissionDenied
+    # GET 리
+
+# 댓글 수정 - 댓글의 번호
+# comment_form.html 
+class CommentUpdate(LoginRequiredMixin, UpdateView):
+    model = Comment
+    form_class = CommentForm
+    
+    # 로그인한 상태에서 작성자(request.user) 가 object.author(Post.objects.get(pk=pk))과 일치하는지 확인 필요
+    def dispatch(self, request, *args, **kwargs): # 방문자가 GET으로 요청했는데 POST로 요청했는지 확인하는 기능
+        if request.user.is_authenticated and request.user == self.get_object().author:
+            return super(CommentUpdate, self).dispatch(request, *args, **kwargs)
+        else:
+            raise PermissionDenied # 권한 없는 사람이 글 수정하려 하면 403
+
+
+def delete_comment(request, pk):
+    comment = Comment.objects.get(pk=pk) # comment 객체 가져옴
+    post = comment.post
+
+    # 로그인 된 상태이고, comment.author 이면 
+    if request.user.is_authenticated and request.user == comment.author:
+            comment.delete()
+            return redirect(post.get_absolute_url())  # /blog/32
+    else:
+        raise PermissionDenied
+

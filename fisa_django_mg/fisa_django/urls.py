@@ -23,6 +23,8 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
+# 디버그
+from debug_toolbar.toolbar import debug_toolbar_urls
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -30,7 +32,7 @@ urlpatterns = [
     # path("account/", include('account.urls')), 아래랑 겹침
     path('accounts/', include('allauth.urls')),
     path('', include('blog.urls'))
-]
+] + debug_toolbar_urls()
 
 
 # static으로 관리할거야, setting에서 media_url을 달고 오는 애들을

@@ -19,9 +19,7 @@ class Tag(models.Model):
         return self.tag_name
     
     def get_absolute_url(self): 
-        return f'/blog/tag/{self.slug}'
-    
-
+        return f'/blog/tag/{self.slug}'    
 
 
 # Post 테이블 작성
@@ -76,7 +74,6 @@ class Post(models.Model):
         return f'/blog/{self.pk}'
 
 
-
 # Comment 테이블 : 글이 있어야 댓글이 가능 -> post 테이블 아래 위치
 class Comment(models.Model):
     post = models.ForeignKey(Post, on_delete=models.CASCADE) # 하나의 포스트에 여러개의 댓글이 달릴 수 있음
@@ -84,10 +81,6 @@ class Comment(models.Model):
     author = models.ForeignKey(User, on_delete=models.CASCADE) # 여러 사람이 댓글을 작성할 수 있음
 
     content = models.TextField()
-
-    #  slug : 짧은 라벨로서, 문자/숫자/밑줄/하이픈만을 포함함
-    #  일반적으로 URL에 사용됨
-    slug = models.SlugField(max_length=30, unique=True, allow_unicode=True)
 
     # 작성된 시간
     # django model 이 최초 저장(insert) 시에만 현재날짜(date.today()) 를 적용
@@ -99,7 +92,6 @@ class Comment(models.Model):
     # django model 이 save 될 때마다 현재날짜(date.today()) 로 갱신됨
     updated_at = models.DateTimeField(auto_now=True) 
       
-
     def __str__(self):
         return f'[[{self.pk}] {self.content}]'
     

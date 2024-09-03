@@ -6,14 +6,9 @@
 <div class="row d-flex justify-content-center">
     <div class="col-6">
         <!-- # multipart-파일 여러개를 줄로 구분해줌 -->
-        <form method="POST" enctype="multipart/form-data">{% csrf_token %}
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
             {{ form|crispy }}
-
-            <div id="div_id_tags_str">
-                <label for="id_tags_str">Tags</label>
-                <input type="text" name="tags_str" id="id_tags_str" class="textinput textInput form-control" value="{{ tags_str_default }}">
-            </div>
-            <br/>
             <input type="submit" value="Save">
         </form>
     </div>
