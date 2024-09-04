@@ -4,4 +4,5 @@ migrations/
 db.sqlite3
 _media
 notebook.txt
+staticfiles/
 .env
