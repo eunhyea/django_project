@@ -36,7 +36,10 @@ AWS_S3_FILE_OVERWRITE = False
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ['*']
+# ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'comeonbabyhigh.store', 'www.comeonbabyhigh.store', 'FISAEUNHYE-PRD-ALB-1229135665.ap-northeast-2.elb.amazonaws.com']
+CSRF_TRUSTED_ORIGINS = ['https://comeonbabyhigh.store', 'https://www.comeonbabyhigh.store'] # 도메인에서 오는 요청을 신뢰할 수 있도록 설정하여, 해당 도메인에서 오는 요청에 대해 CSRF 검사를 통과시킵니다.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https') # 프록시 서버(Nginx 등)가 HTTPS 요청을 수신하고, 이를 HTTP로 변환하여 Django에 전달할 때, Django가 요청이 실제로 HTTPS를 통해 전달되었음을 인식할 수 있도록 합니다. 이를 통해 Django는 보안 관련 설정(예: SECURE_SSL_REDIRECT, CSRF_COOKIE_SECURE, SESSION_COOKIE_SECURE 등)을 올바르게 적용할 수 있습니다.
 
 
 # Application definition
@@ -193,6 +196,11 @@ STORAGES = {
 AWS_S3_OBJECT_PARAMETERS = {
     "CacheControl": "max-age=2592000", # 30일(30 * 24 * 60 * 60)을 의미,  S3에 업로드된 객체가 브라우저나 캐시 서버에 의해 30일 동안 캐시될 수 있도록 합니다. 이를 통해 웹사이트의 성능을 향상시킵니다.
 }
+
+# print(f"AWS_ACCESS_KEY_ID: {AWS_ACCESS_KEY_ID}")  # 디버깅
+# print(f"AWS_SECRET_ACCESS_KEY: {AWS_SECRET_ACCESS_KEY}")  # 디버깅
+# print(f"AWS_STORAGE_BUCKET_NAME: {AWS_STORAGE_BUCKET_NAME}")  # 디버깅
+# print(f"STATICFILES_STORAGE: {STATICFILES_LOCATION}")  # 디버깅
 
 
 # 'blog/post-list'
